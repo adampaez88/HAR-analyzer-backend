@@ -1,8 +1,24 @@
-// harService.ts
 import fs from "fs/promises";
-import { HarFile, HarEntry } from "../types/harTypes";
+import {
+  HarFile,
+  HarEntry,
+  DetailedRequest,
+  ModifiedRequest,
+  MissingRequest,
+} from "../types/harTypes";
 
-// 🧠 Safe JSON parsing
+import {
+  extractQueryParams,
+  headersArrayToObject,
+  buildRequestKey,
+  areRequestsEqual,
+  tryParseJson,
+} from "../utils/requestUtils";
+
+import { diffObjects } from "../utils/diffUtils";
+
+// -------------------- PARSE + VALIDATE --------------------
+
 const parseJson = (content: string): HarFile => {
   try {
     return JSON.parse(content);
@@ -11,185 +27,180 @@ const parseJson = (content: string): HarFile => {
   }
 };
 
-// 🧠 Validate HAR structure
 const validateHar = (har: HarFile) => {
   if (!har.log?.entries || !Array.isArray(har.log.entries)) {
     throw new Error("Invalid HAR structure");
   }
 };
 
-// 🧠 Normalize URL (remove query params)
-const normalizeUrl = (url: string): string => {
-  try {
-    const parsed = new URL(url);
-    return parsed.origin + parsed.pathname;
-  } catch {
-    return url;
-  }
-};
+// -------------------- TRANSFORM --------------------
 
-// 🧠 Extract + clean requests (BLOCKED requests included as status = 0)
-const extractRequests = (
+const extractDetailedRequests = (
   entries: HarEntry[]
-): { url: string; status: number, time: string }[] => {
+): DetailedRequest[] => {
   return entries
-    .map((entry) => ({
-      url: entry.request?.url ? normalizeUrl(entry.request.url) : undefined,
-      status: entry.response?.status ?? 0, // 🚀 Treat undefined/missing status as 0
-      time: entry.response?.startedDateTime,
-    }))
-    .filter((req): req is { url: string; status: number, time: string } => !!req.url); // include all requests with a URL
+    .map((entry) => {
+      const url = entry.request?.url;
+      if (!url) return undefined;
+
+      let baseUrl = url;
+
+      try {
+        const parsed = new URL(url);
+        baseUrl = parsed.origin + parsed.pathname;
+      } catch {
+        // ignore invalid URLs
+      }
+
+      return {
+        method: entry.request?.method || "GET",
+        baseUrl,
+        queryParams: extractQueryParams(url),
+        headers: headersArrayToObject(entry.request?.headers),
+        body: entry.request?.postData?.text,
+        status: entry.response?.status ?? 0,
+        time: entry.response?.startedDateTime || "",
+      };
+    })
+    .filter((r): r is DetailedRequest => r !== undefined);
 };
 
-// 🧠 Build URL → status[] map (handles duplicates)
-const buildStatusMap = (
-  requests: { url: string; status: number; time: string }[]
-) => {
-  const map = new Map<string, { status: number; time: string }[]>();
+// -------------------- GROUPING --------------------
+
+const buildRequestMap = (requests: DetailedRequest[]) => {
+  const map = new Map<string, DetailedRequest[]>();
 
   for (const req of requests) {
-    if (!map.has(req.url)) map.set(req.url, []);
-    map.get(req.url)!.push({ status: req.status, time: req.time });
+    const key = buildRequestKey(req);
+
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+
+    map.get(key)!.push(req);
   }
 
   return map;
 };
 
-// 🧠 Compare status arrays
-const arraysEqual = (a: number[], b: number[]) => {
-  if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
-  return sortedA.every((val, i) => val === sortedB[i]);
-};
+// -------------------- MAIN --------------------
 
-// 🧠 Compute metrics (success/failure rates) including blocked requests
-const computeMetrics = (statuses: number[]) => {
-  const total = statuses.length;
-  const failures = statuses.filter((s) => s >= 400 || s === 0).length; // 🚀 status=0 counts as failure
-  const success = statuses.filter((s) => s < 400).length;
-  return {
-    total,
-    success,
-    failures,
-    failureRate: total === 0 ? 0 : failures / total,
-  };
-};
-
-// 🚀 Main processing function
 export const processHarFiles = async (
   filePath1: string,
   filePath2: string
 ) => {
-  // Read files
   const file1Content = await fs.readFile(filePath1, "utf-8");
   const file2Content = await fs.readFile(filePath2, "utf-8");
 
-  // Parse JSON
   const har1 = parseJson(file1Content);
   const har2 = parseJson(file2Content);
 
-  // Validate HAR structure
   validateHar(har1);
   validateHar(har2);
 
-  // Extract requests (includes blocked requests)
-  const requests1 = extractRequests(har1.log!.entries!);
-  const requests2 = extractRequests(har2.log!.entries!);
+  const reqs1 = extractDetailedRequests(har1.log!.entries!);
+  const reqs2 = extractDetailedRequests(har2.log!.entries!);
 
-  // Build maps (URL → status[])
-  const map1 = buildStatusMap(requests1);
-  const map2 = buildStatusMap(requests2);
+  const map1 = buildRequestMap(reqs1);
+  const map2 = buildRequestMap(reqs2);
 
-  // Find unique URLs
-  const onlyInFile1 = [...map1.keys()].filter((url) => !map2.has(url));
-  const onlyInFile2 = [...map2.keys()].filter((url) => !map1.has(url));
+  // -------------------- MISSING --------------------
 
-  // Find status mismatches
-  const statusMismatches: {
-    url: string;
-    // file1Statuses: number[];
-    // file2Statuses: number[];
-    file1Requests: { status: number; time: string }[];
-    file2Requests: { status: number; time: string }[];  
-    file1Metrics: ReturnType<typeof computeMetrics>;
-    file2Metrics: ReturnType<typeof computeMetrics>;
-  }[] = [];
+  const missingRequests: MissingRequest[] = [];
 
-  for (const [url, statuses1] of map1.entries()) {
-    if (!map2.has(url)) continue;
+  const allKeys = new Set([...map1.keys(), ...map2.keys()]);
 
-    const statuses2 = map2.get(url)!;
+  for (const key of allKeys) {
+    const r1 = map1.get(key) || [];
+    const r2 = map2.get(key) || [];
 
-    const statusArray1 = statuses1.map((s) => s.status);
-    const statusArray2 = statuses2.map((s) => s.status);
-
-    if (!arraysEqual(statusArray1, statusArray2)) {
-      statusMismatches.push({
-        url,
-        file1Requests: statuses1,
-        file2Requests: statuses2,
-        file1Metrics: computeMetrics(statusArray1),
-        file2Metrics: computeMetrics(statusArray2),
+    if (r1.length !== r2.length) {
+      missingRequests.push({
+        key,
+        file1Count: r1.length,
+        file2Count: r2.length,
+        difference: Math.abs(r1.length - r2.length),
       });
     }
   }
 
-  // Build endpoint insights
-  const endpointInsights = [];
+  // -------------------- MODIFIED --------------------
 
-  for (const [url, statuses1] of map1.entries()) {
-    const statusArray1 = statuses1.map((s) => s.status);
-    const metrics1 = computeMetrics(statusArray1);
+  const modifiedRequests: ModifiedRequest[] = [];
 
-    const statuses2 = map2.get(url);
+  for (const [key, r1] of map1.entries()) {
+    const r2 = map2.get(key);
+    if (!r2) continue;
 
-    let metrics2 = null;
+    const unmatched1 = [...r1];
+    const unmatched2 = [...r2];
 
-    if (statuses2) {
-      const statusArray2 = statuses2.map((s) => s.status);
-      metrics2 = computeMetrics(statusArray2);
+    // Step 1: remove exact matches
+    for (let i = unmatched1.length - 1; i >= 0; i--) {
+      const matchIndex = unmatched2.findIndex((b) =>
+        areRequestsEqual(unmatched1[i], b)
+      );
+
+      if (matchIndex !== -1) {
+        unmatched1.splice(i, 1);
+        unmatched2.splice(matchIndex, 1);
+      }
     }
 
-    endpointInsights.push({
-      url,
-      file1: metrics1,
-      file2: metrics2,
-    });
+    // Step 2: build structured diffs
+    const min = Math.min(unmatched1.length, unmatched2.length);
+
+    for (let i = 0; i < min; i++) {
+      const a = unmatched1[i];
+      const b = unmatched2[i];
+
+      modifiedRequests.push({
+        key,
+        file1: a,
+        file2: b,
+        diff: {
+          key,
+          request: {
+            headers: diffObjects(a.headers, b.headers),
+            body: diffObjects(
+              tryParseJson(a.body) || { raw: a.body },
+              tryParseJson(b.body) || { raw: b.body }
+            ),
+          },
+          response: {
+            headers: diffObjects({}, {}), // placeholder for future expansion
+          },
+        },
+      });
+    }
   }
 
-  // Find worst endpoints (consider blocked requests)
-  const worstEndpoints = endpointInsights
-    .filter((e) => e.file1.failures > 0 || (e.file2?.failures ?? 0) > 0)
-    .sort((a, b) => {
-      const rateA = Math.max(a.file1.failureRate, a.file2?.failureRate ?? 0);
-      const rateB = Math.max(b.file1.failureRate, b.file2?.failureRate ?? 0);
-      return rateB - rateA;
-    })
-    .slice(0, 5);
+  // -------------------- RESPONSE --------------------
 
-  // Return result
   return {
     message: "HAR comparison complete",
 
     summary: {
-      file1TotalRequests: requests1.length,
-      file2TotalRequests: requests2.length,
-      uniqueUrlsFile1: map1.size,
-      uniqueUrlsFile2: map2.size,
-      onlyInFile1: onlyInFile1.length,
-      onlyInFile2: onlyInFile2.length,
-      statusMismatches: statusMismatches.length,
+      file1TotalRequests: reqs1.length,
+      file2TotalRequests: reqs2.length,
+      missingRequestGroups: missingRequests.length,
+      modifiedRequestPairs: modifiedRequests.length,
     },
 
     insights: {
-      worstEndpoints,
+      missingRequests,
+      modifiedRequests,
+    },
+
+    aiReadySummary: {
+      totalDifferences:
+        missingRequests.length + modifiedRequests.length,
+      biggestChangeArea: "headers/body/cookies (future expansion)",
     },
 
     sample: {
-      onlyInFile1: onlyInFile1.slice(0, 5),
-      onlyInFile2: onlyInFile2.slice(0, 5),
-      statusMismatches: statusMismatches.slice(0, 5),
+      missingRequests: missingRequests.slice(0, 5),
+      modifiedRequests: modifiedRequests.slice(0, 5),
     },
   };
 };
