@@ -64,3 +64,41 @@ export const tryParseJson = (text?: string): any | null => {
     return null;
   }
 };
+
+export const cookiesArrayToObject = (cookies: any[] = []) => {
+  const result: Record<string, string> = {};
+
+  cookies.forEach((c) => {
+    if (c.name) {
+      result[c.name.toLowerCase()] = c.value;
+    }
+  });
+
+  return result;
+};
+
+export const extractSetCookiesFromHeaders = (
+  headers: Record<string, string>
+) => {
+  const result: Record<string, string> = {};
+
+  const setCookieHeader = headers["set-cookie"];
+
+  if (!setCookieHeader) return result;
+
+  // handle single or multiple cookies
+  const cookies = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : [setCookieHeader];
+
+  cookies.forEach((cookieStr) => {
+    const [pair] = cookieStr.split(";");
+    const [name, value] = pair.split("=");
+
+    if (name && value) {
+      result[name.trim().toLowerCase()] = value.trim();
+    }
+  });
+
+  return result;
+};

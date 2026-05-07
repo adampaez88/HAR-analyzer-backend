@@ -13,6 +13,8 @@ import {
   buildRequestKey,
   areRequestsEqual,
   tryParseJson,
+  cookiesArrayToObject,
+  extractSetCookiesFromHeaders
 } from "../utils/requestUtils";
 
 import { diffObjects } from "../utils/diffUtils";
@@ -39,9 +41,9 @@ const extractDetailedRequests = (
   entries: HarEntry[]
 ): DetailedRequest[] => {
   return entries
-    .map((entry) => {
+    .map((entry): DetailedRequest | null => {
       const url = entry.request?.url;
-      if (!url) return undefined;
+      if (!url) return null;
 
       let baseUrl = url;
 
@@ -52,17 +54,42 @@ const extractDetailedRequests = (
         // ignore invalid URLs
       }
 
+      const requestHeaders = headersArrayToObject(entry.request?.headers);
+      const responseHeaders = headersArrayToObject(entry.response?.headers || []);
+
+      const requestCookies = cookiesArrayToObject(entry.request?.cookies);
+      const responseCookies = extractSetCookiesFromHeaders(responseHeaders);
+
+      const timings = entry.timings || {};
+
+
       return {
         method: entry.request?.method || "GET",
         baseUrl,
         queryParams: extractQueryParams(url),
-        headers: headersArrayToObject(entry.request?.headers),
-        body: entry.request?.postData?.text,
+        headers: requestHeaders,
+        // body: entry.request?.postData?.text,
+        ...(entry.request?.postData?.text && {
+          body: entry.request.postData.text,
+        }),
+
         status: entry.response?.status ?? 0,
         time: entry.response?.startedDateTime || "",
+
+        // ✅ NEW
+        cookies: requestCookies,
+        setCookies: responseCookies,
+
+        timings: {
+          wait: timings.wait,
+          receive: timings.receive,
+          total:
+            (timings.wait || 0) +
+            (timings.receive || 0),
+        },
       };
     })
-    .filter((r): r is DetailedRequest => r !== undefined);
+    .filter((r): r is DetailedRequest => r !== null);
 };
 
 // -------------------- GROUPING --------------------
@@ -100,6 +127,10 @@ export const processHarFiles = async (
 
   const reqs1 = extractDetailedRequests(har1.log!.entries!);
   const reqs2 = extractDetailedRequests(har2.log!.entries!);
+
+  // ✅ DEBUG LOGS
+  console.log("SAMPLE REQUEST FILE 1:", reqs1[0]);
+  console.log("SAMPLE REQUEST FILE 2:", reqs2[0]);
 
   const map1 = buildRequestMap(reqs1);
   const map2 = buildRequestMap(reqs2);
@@ -158,6 +189,13 @@ export const processHarFiles = async (
         key,
         file1: a,
         file2: b,
+
+        timing: {
+          file1: a.timings?.total || 0,
+          file2: b.timings?.total || 0,
+          delta: (b.timings?.total || 0) - (a.timings?.total || 0),
+        },
+
         diff: {
           key,
           request: {
@@ -166,9 +204,11 @@ export const processHarFiles = async (
               tryParseJson(a.body) || { raw: a.body },
               tryParseJson(b.body) || { raw: b.body }
             ),
+            cookies: diffObjects(a.cookies, b.cookies),
           },
           response: {
-            headers: diffObjects({}, {}), // placeholder for future expansion
+            headers: diffObjects({}, {}),
+            cookies: diffObjects(a.setCookies, b.setCookies),
           },
         },
       });
