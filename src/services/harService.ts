@@ -128,10 +128,6 @@ export const processHarFiles = async (
   const reqs1 = extractDetailedRequests(har1.log!.entries!);
   const reqs2 = extractDetailedRequests(har2.log!.entries!);
 
-  // ✅ DEBUG LOGS
-  console.log("SAMPLE REQUEST FILE 1:", reqs1[0]);
-  console.log("SAMPLE REQUEST FILE 2:", reqs2[0]);
-
   const map1 = buildRequestMap(reqs1);
   const map2 = buildRequestMap(reqs2);
 
