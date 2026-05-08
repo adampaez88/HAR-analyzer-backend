@@ -17,10 +17,25 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
+
   limits: {
     fileSize: config.maxFileSize,
+  },
+
+  fileFilter: (_req, file, cb) => {
+    const isHar =
+      file.mimetype.includes("json") ||
+      file.originalname.endsWith(".har");
+
+    if (!isHar) {
+      return cb(
+        new Error("Only HAR files are allowed")
+      );
+    }
+
+    cb(null, true);
   },
 });
 
