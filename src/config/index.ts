@@ -5,7 +5,10 @@ dotenv.config();
 export const config = {
   port: process.env.PORT || 3000,
 
-  uploadDir: "uploads/",
+  uploadDir:
+  process.env.NODE_ENV === "production"
+    ? "/tmp/uploads"
+    : "uploads",
 
   maxFileSize:
     Number(process.env.MAX_FILE_SIZE_MB || 25) *
