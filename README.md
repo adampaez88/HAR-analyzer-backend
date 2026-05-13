@@ -79,6 +79,7 @@ Production Features
     ├── types/
     ├── utils/
 
+
 🧠 Core Backend Design
 Diff Engine
 Primary processing occurs in: services/harService.ts
@@ -182,6 +183,7 @@ Future improvements:
     - timeout handling
     - request retry protection
     - improved validation contracts
+
 
 📈 Long-Term Vision
 HAR Analyzer is evolving into:
