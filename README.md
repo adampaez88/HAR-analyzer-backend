@@ -16,68 +16,68 @@ Health Endpoint:
 
 🏗️ Backend Architecture
 The backend owns:
-- HAR parsing
-- request normalization
-- diff generation
-- timing analysis
-- API response contracts
+    - HAR parsing
+    - request normalization
+    - diff generation
+    - timing analysis
+    - API response contracts
 
 Architecture ownership:
-- Backend owns truth
-- Adapter owns normalization
-- UI owns presentation
-- AI owns interpretation
+    - Backend owns truth
+    - Adapter owns normalization
+    - UI owns presentation
+    - AI owns interpretation
 
 ⚙️ Tech Stack
-- Node.js
-- Express
-- TypeScript
-- Multer
-- Helmet
-- Compression
-- Express Rate Limit
-- Render
+    - Node.js
+    - Express
+    - TypeScript
+    - Multer
+    - Helmet
+    - Compression
+    - Express Rate Limit
+    - Render
 
 ✨ Features
 HAR Processing
-- parses HAR files
-- extracts request metadata
-- compares request groups
-- identifies missing requests
-- identifies modified requests
+    - parses HAR files
+    - extracts request metadata
+    - compares request groups
+    - identifies missing requests
+    - identifies modified requests
 
 Diff Engine
 Supports:
-- request headers
-- request body
-- request cookies
-- response headers
-- response cookies
+    - request headers
+    - request body
+    - request cookies
+    - response headers
+    - response cookies
 
 Timing Analysis
 Tracks:
-- wait timing
-- receive timing
-- total request timing
-- timing deltas between HARs
+    - wait timing
+    - receive timing
+    - total request timing
+    - timing deltas between HARs
 
 Production Features
-- file upload validation
-- request size limiting
-- centralized error handling
-- CORS protection
-- rate limiting
-- compression
-- security middleware
+    - file upload validation
+    - request size limiting
+    - centralized error handling
+    - CORS protection
+    - rate limiting
+    - compression
+    - security middleware
 
 📂 Project Structure
-src/
-├── config/
-├── controllers/
-├── routes/
-├── services/
-├── types/
-├── utils/
+    src/
+    ├── config/
+    ├── controllers/
+    ├── routes/
+    ├── services/
+    ├── types/
+    ├── utils/
 
 🧠 Core Backend Design
 Diff Engine
@@ -117,24 +117,24 @@ Start production server
 Backend is deployed using Render
 
 Production Considerations
-- The backend includes:
-- proxy-aware configuration
-- production CORS handling
-- rate limiting
-- upload protection
-- centralized error handling
+    - The backend includes:
+    - proxy-aware configuration
+    - production CORS handling
+    - rate limiting
+    - upload protection
+    - centralized error handling
 
 🔒 Security Features
 Middleware
-- Helmet
-- CORS
-- Compression
-- Express Rate Limit
+    - Helmet
+    - CORS
+    - Compression
+    - Express Rate Limit
 
 Upload Protection
-- file type validation
-- upload size limits
-- request limiting
+    - file type validation
+    - upload size limits
+    - request limiting
 
 🧪 Health Check
 Endpoint:
@@ -148,53 +148,55 @@ Example response:
 
 🚀 Planned Backend Improvements
 Infrastructure
-- Docker support
-- CI/CD pipelines
-- automated testing
-- monitoring/logging
+    - Docker support
+    - CI/CD pipelines
+    - automated testing
+    - monitoring/logging
 
 Upload Processing
-- stream-based processing
-- zero-disk upload pipeline
-- stronger HAR validation
+    - stream-based processing
+    - zero-disk upload pipeline
+    - stronger HAR validation
 
 Performance
-- async/background processing
-- optimized diff algorithms
-- memory optimization
+    - async/background processing
+    - optimized diff algorithms
+    - memory optimization
 
 AI Features
-- AI-generated summaries
-- anomaly detection
-- intelligent root-cause analysis
-- API contract drift detection
+    - AI-generated summaries
+    - anomaly detection
+    - intelligent root-cause analysis
+    - API contract drift detection
 
 API Evolution
-- API versioning
-- authenticated sessions
-- persistent history
-- saved comparisons
+    - API versioning
+    - authenticated sessions
+    - persistent history
+    - saved comparisons
 
 🛡️ Error Handling Goals
 Future improvements:
-- granular upload errors
-- malformed HAR validation
-- timeout handling
-- request retry protection
-- improved validation contracts
+    - granular upload errors
+    - malformed HAR validation
+    - timeout handling
+    - request retry protection
+    - improved validation contracts
 
 📈 Long-Term Vision
 HAR Analyzer is evolving into:
     a production-grade HAR analysis and network diagnostics platform
 
 Long-term goals include:
-- AI-powered request analysis
-- advanced timing analytics
-- collaboration tools
-- large-scale HAR visualization
-- enterprise debugging workflows
+    - AI-powered request analysis
+    - advanced timing analytics
+    - collaboration tools
+    - large-scale HAR visualization
+    - enterprise debugging workflows
 
-👨‍💻 Author
+👨‍💻 Author:
 Adam Chernitsky
+
 GitHub: https://github.com/adampaez88
+
 Portfolio: https://studio--studio-6412533934-88d88.us-central1.hosted.app/
