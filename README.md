@@ -1,5 +1,4 @@
 # HAR Analyzer Backend
-
 Backend API for the HAR Analyzer platform.
 
 This service processes HAR (HTTP Archive) files and generates structured request-level diffs including headers, cookies, payloads, responses, and timing analysis.
@@ -7,7 +6,6 @@ This service processes HAR (HTTP Archive) files and generates structured request
 The backend is designed around scalable diff processing pipelines and normalized API contracts to support future AI-powered analysis capabilities.
 
 # 🚀 Live API
-
 Backend Deployment: https://har-analyzer-backend-hkyx.onrender.com
 
 Backend Repo: https://github.com/adampaez88/HAR-analyzer-backend
@@ -73,13 +71,14 @@ Production Features
     - security middleware
 
 📂 Project Structure
-src/
-├── config/
-├── controllers/
-├── routes/
-├── services/
-├── types/
-├── utils/
+    src/
+    ├── config/
+    ├── controllers/
+    ├── routes/
+    ├── services/
+    ├── types/
+    ├── utils/
+
 
 🧠 Core Backend Design
 Diff Engine
@@ -179,11 +178,12 @@ API Evolution
 
 🛡️ Error Handling Goals
 Future improvements:
-    granular upload errors
-    malformed HAR validation
-    timeout handling
-    request retry protection
-    improved validation contracts
+    - granular upload errors
+    - malformed HAR validation
+    - timeout handling
+    - request retry protection
+    - improved validation contracts
+
 
 📈 Long-Term Vision
 HAR Analyzer is evolving into:
@@ -196,7 +196,9 @@ Long-term goals include:
     - large-scale HAR visualization
     - enterprise debugging workflows
 
-👨‍💻 Author
+👨‍💻 Author:
 Adam Chernitsky
+
 GitHub: https://github.com/adampaez88
+
 Portfolio: https://studio--studio-6412533934-88d88.us-central1.hosted.app/
